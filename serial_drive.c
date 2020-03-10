@@ -1,7 +1,7 @@
 /*
  * @Author: your name
  * @Date: 2019-12-05 19:34:15
- * @LastEditTime : 2020-02-26 20:01:47
+ * @LastEditTime : 2020-03-09 23:32:57
  * @LastEditors  : Please set LastEditors
  * @Description: 串口设置
  * @FilePath: /balance-101-4g/terminal_io.c
@@ -9,6 +9,7 @@
 #include <string.h>
 #include <sys/ioctl.h>
 #include "serial_drive.h"
+#include "include/zlog.h"
 
 UartInfo gUart;//串口结构体
 
@@ -23,6 +24,7 @@ int open_serial(char *dev)
     if (fd < 1)
     {
         logMsg(logErr, "open <%s> error %s\n", dev, strerror(errno));
+        zlog_error(zc,"open <%s> error..", dev);
         return -1;
     }
 
@@ -45,6 +47,7 @@ int set_termios(int fd, struct termios *options, int databits, int stopbits, cha
     printf("\n########串口设置#########\n");
     if (tcgetattr(fd, options) != 0)
     {
+        zlog_error(zc,"get serial sattr error..");
         logMsg(logErr, "SetupSerial 1");
         return (false);
     }
@@ -66,6 +69,7 @@ int set_termios(int fd, struct termios *options, int databits, int stopbits, cha
         break;
     default:
         logMsg(logErr, "Unsupported data size");
+        zlog_error(zc,"Unsupported data size,数据位默认设置为8");
         options->c_cflag |= CS8;
         logMsg(logInfo,"数据位默认设置:8");
         return (false);
@@ -97,6 +101,7 @@ int set_termios(int fd, struct termios *options, int databits, int stopbits, cha
         options->c_cflag &= ~CSTOPB;
         break;
     default:
+        zlog_error(zc,"Unsupported parity,默认校验位:无校验");
         logMsg(logErr, "Unsupported parity");
         options->c_cflag &= ~PARENB; /* Clear parity enable */
         options->c_iflag &= ~INPCK;  /* disnable parity checking */
@@ -133,12 +138,14 @@ int set_termios(int fd, struct termios *options, int databits, int stopbits, cha
     /* Overflow data can be received, but not read */
     if (tcflush(fd, TCIFLUSH) < 0)
     {
+        zlog_error(zc,"tcflush failed");
         logMsg(logErr, "tcflush failed");
         return (false);
     }
 
     if (tcsetattr(fd, TCSANOW, options) < 0)
     {
+        zlog_error(zc,"SetupSerial failed");
         logMsg(logErr, "SetupSerial failed");
         return (false);
     }
@@ -175,6 +182,9 @@ int find_baudrate(int rate)
     case 1200:
         baudr = B1200;
         break;
+    case 4800:
+        baudr = B4800;
+        break;
     case 9600:
         baudr = B9600;
         break;
@@ -195,12 +205,6 @@ int find_baudrate(int rate)
         break;
     case 460800:
         baudr = B460800;
-        break;
-    case 500000:
-        baudr = B500000;
-        break;
-    case 576000:
-        baudr = B576000;
         break;
     default:
         logMsg(logInfo, "invalid baudrate, set baudrate for 115200\n");
@@ -226,6 +230,7 @@ int serial_write(int fd, const void *buf, int len, struct timeval *write_tv)
         ret = select(fd + 1, NULL, &output, NULL, write_tv);
         if (ret == -1)
         { /* error */
+            zlog_error(zc,"select() failed!");
             logMsg(logErr, "select() failed!");
             return ERROR;
             ;
@@ -235,6 +240,7 @@ int serial_write(int fd, const void *buf, int len, struct timeval *write_tv)
             ret = write(fd, (BYTE *)buf + count, len);
             if (ret < 1)
             {
+                zlog_error(zc, "write error..");
                 logMsg(logErr, "write error %s\n", strerror(errno));
                 return ERROR;
                 ;
@@ -244,6 +250,7 @@ int serial_write(int fd, const void *buf, int len, struct timeval *write_tv)
         }
         else
         { /* timeout */
+            zlog_error(zc, "time out..");
             logMsg(logErr, "time out.\n");
             return ERROR;
         }
@@ -258,14 +265,18 @@ int serial_write(int fd, const void *buf, int len, struct timeval *write_tv)
 int TransData(BYTE *buff, int bufLen)
 {
     int write_size,i;
+    char tmp[32];
+    char buf[800];
     struct timeval tv;
 
+    memset(buf,'\0',800);
     tv.tv_sec = 2;
     tv.tv_usec = 0;
     write_size = serial_write(gUart.fd, buff, bufLen, &tv);
 
     if (write_size <= 0 || write_size != bufLen)
     {
+        zlog_error(zc, "Transmited data error,data size of transmission=%d", write_size);
         logMsg(logErr, "Transmited data error,data size of transmission=%d\n", write_size);
         return 0;
     }
@@ -288,6 +299,8 @@ int TransData(BYTE *buff, int bufLen)
     printf("send:%d=> ", write_size);
     for (i = 0; i < write_size; i++)
     {
+        sprintf(tmp,"%02x ",(int)buff[i]);
+        strcat(buf,tmp);
         printf("%02x ", (int)buff[i]);
 #ifdef LOG
         if (log_fd != NULL)
@@ -297,6 +310,7 @@ int TransData(BYTE *buff, int bufLen)
 
 #endif
     }
+    zlog_info(zc,"send:%d=> %s", write_size,buf);
 #ifdef LOG
     if (log_fd != NULL)
     {
@@ -330,6 +344,7 @@ int serial_read(int fd, const void *data, int bufLen, int timeout_sec)
         logMsg(logErr, "select()\n");
         return ERROR;
     case 0:
+        zlog_info(zc,"recv:接收超时啦!!!\n");
         printf("recv:接收超时啦!!!\n\n");
         return ERROR;
     default:
@@ -356,6 +371,8 @@ int serial_read(int fd, const void *data, int bufLen, int timeout_sec)
  */
 int RecvData(BYTE *buff, int bufLen)
 {
+    char tmp[32];
+    char buf[800];
     int read_size,i;
 
     read_size = serial_read(gUart.fd, (BYTE *)buff, bufLen, 5);//等待5s,设置超时时间为5s,5s没收到数据时,重新请求
@@ -379,6 +396,8 @@ int RecvData(BYTE *buff, int bufLen)
         #endif
         for (i = 0; i < read_size; i++)
         {
+            sprintf(tmp,"%02x ",(int)buff[i]);
+            strcat(buf,tmp);
             printf("%02x ", (int)buff[i]);
             #ifdef LOG
                 if (log_fd != NULL){
@@ -386,6 +405,7 @@ int RecvData(BYTE *buff, int bufLen)
                 }
                 #endif
         }
+        zlog_info(zc,"send:%d=> %s", read_size,buf);
         #ifdef LOG
             if (log_fd != NULL){
                 fprintf(log_fd, "\n");
@@ -475,6 +495,7 @@ int serial_init(int *fd, struct termios *opt)
     //解析config.json文件,提取串口参数
     state = Uart_info_parse(&gUart,FILENAME);
     if(state == false){
+        zlog_error(zc, "解析串口.json文件错误");
         logMsg(logErr,"解析串口.json文件错误");
         return false;
     }
@@ -505,7 +526,7 @@ int serial_init(int *fd, struct termios *opt)
     baudrate = find_baudrate(gUart.baudRate);
     state = set_baudrate(*fd, opt, baudrate);
     if (state == false){
-        logMsg(logErr, "set usart baudrate of 115200 faild");
+        logMsg(logErr, "set  baudrate 115200 ");
         return false;
     }
     return true;
@@ -521,15 +542,12 @@ char *openJsonFile(const char *fileName)
 {
     FILE *pf = NULL;
     char *data = NULL;
-    char filePath[FILE_NAME_LEN_MAX];
     long lfileLen = 0;
     int rcnt = 0;
 
-    // 打开test.json文件
-    sprintf(filePath, "./%s", fileName);
-    if (NULL == (pf = fopen(filePath, "r")))
+    // 打开JSON文件
+    if (NULL == (pf = fopen(fileName, "r")))
     {
-        logMsg(logInfo, "[Error] fopen %s failed.", fileName);
         return NULL;
     }
 
@@ -538,6 +556,7 @@ char *openJsonFile(const char *fileName)
     lfileLen = ftell(pf); // 获取文件长度
     if (lfileLen == 0)
     {
+        zlog_error(zc,  "文件内容为空.");
         logMsg(logWarn, "文件内容为空.");
         return NULL;
     }
@@ -550,7 +569,7 @@ char *openJsonFile(const char *fileName)
     // 关闭json文件
     fclose(pf);
 
-    if (rcnt < 10)
+    if (rcnt < 5)
     {
         logMsg(logWarn, "Read file only %d bytes.", rcnt);
     }
@@ -576,6 +595,7 @@ long saveJsonFile(cJSON *json, const char *fileName)
     sprintf(filePath, "./%s", fileName);
     if (NULL == (pf = fopen(filePath, "w")))
     {
+        zlog_error(zc,  "[Error ] 写文件失败.");
         logMsg(logInfo, "[Error ] 写文件失败.");
         return -1;
     }
@@ -593,15 +613,20 @@ long saveJsonFile(cJSON *json, const char *fileName)
  */
 int Uart_info_parse(UartInfo *uart,const char *fileName)
 {
+    char tmp[128];
     char *fd = NULL;
     cJSON *pjson = NULL;
     cJSON *item = NULL;
     cJSON *child_item=NULL;
 
     printf("\n########串口参数解析#########\n");
-    if (NULL == (fd = openJsonFile((char *)fileName))){ // 打开配置脚本文件,fd指向文件内容
-        logMsg(logErr, "%s文件打开错误!", (char *)fileName);
-        return false;
+    if (NULL == (fd = openJsonFile(fileName))){ // 打开配置脚本文件,fd指向文件内容
+        sprintf(tmp,"/mnt/nand/env/%s",fileName);
+        if (NULL == (fd = openJsonFile(tmp))){
+            zlog_error(zc, "%s文件打开错误!", tmp);
+            logMsg(logErr, "%s文件打开错误!", tmp);
+            return false;
+        }
     }
 
     // 解析数据
@@ -612,6 +637,7 @@ int Uart_info_parse(UartInfo *uart,const char *fileName)
     
     child_item = cJSON_GetObjectItem(item, "DevName");
     if (NULL == child_item){
+        zlog_error(zc, "提取串口设备名错误!");
         logMsg(logErr,"提取串口设备名错误!");
         return false;
     }
@@ -620,6 +646,7 @@ int Uart_info_parse(UartInfo *uart,const char *fileName)
     
     child_item = cJSON_GetObjectItem(item, "Port");
     if (NULL == child_item){
+        zlog_error(zc, "提取串口port错误!");
         logMsg(logErr,"提取串口port错误!");
         return false;
     }
@@ -628,6 +655,7 @@ int Uart_info_parse(UartInfo *uart,const char *fileName)
 
     child_item = cJSON_GetObjectItem(item, "BaudRate");
     if (NULL == child_item){
+        zlog_error(zc, "提取BaudRate错误!");
         logMsg(logErr,"提取BaudRate错误!");
         return false;
     }
@@ -636,6 +664,7 @@ int Uart_info_parse(UartInfo *uart,const char *fileName)
 
     child_item = cJSON_GetObjectItem(item, "Parity");
     if (NULL == child_item){
+        zlog_error(zc, "提取Parity错误!");
         logMsg(logErr,"提取Parity错误!");
         return false;
     }

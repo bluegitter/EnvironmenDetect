@@ -1,0 +1,190 @@
+{
+    "broker_ip":"192.168.1.101",
+    "app_name":"Env",
+    "model": {
+        "token":"123",
+        "model_name":"Env",
+        "body":[
+            {
+                "name":"PointTemp_PhA",
+                "type":"float",
+                "unit": "°C",
+                "deadzone":"0.5",
+                "ratio": "1",
+                "isReport":"1",
+                "userdefine": ""    
+            },
+            {
+                "name":"PointTemp_PhB",
+                "type":"float",
+                "unit": "°C",
+                "deadzone":"0.5",
+                "ratio": "1",
+                "isReport":"1",
+                "userdefine": ""  
+            },
+            {
+                "name":"PointTemp_PhC",
+                "type":"float",
+                "unit": "°C",
+                "deadzone":"0.5",
+                "ratio": "1",
+                "isReport":"1",
+                "userdefine": ""  
+            },
+            {
+                "name":"EnvDiffTemp_PhA",
+                "type":"float",
+                "unit": "°C",
+                "deadzone":"0.5",
+                "ratio": "1",
+                "isReport":"1",
+                "userdefine": ""  
+            },
+            {
+                "name":"EnvDiffTemp_PhB",
+                "type":"float",
+                "unit": "°C",
+                "deadzone":"0.5",
+                "ratio": "1",
+                "isReport":"1",
+                "userdefine": ""  
+            },
+            {
+                "name":"EnvDiffTemp_PhC",
+                "type":"float",
+                "unit": "°C",
+                "deadzone":"0.5",
+                "ratio": "1",
+                "isReport":"1",
+                "userdefine": ""  
+            },
+            {
+                "name":"Tmp",
+                "type":"float",
+                "unit": "°C",
+                "deadzone":"0.5",
+                "ratio": "1",
+                "isReport":"1",
+                "userdefine": ""  
+            },
+            {
+                "name":"EnvHum",
+                "type":"float",
+                "unit": "%RH",
+                "deadzone":"0.5",
+                "ratio": "1",
+                "isReport":"1",
+                "userdefine": ""  
+            },
+            {
+                "name":"SmokAlm",
+                "type":"bool",
+                "unit": "",
+                "deadzone":"0.5",
+                "ratio": "1",
+                "isReport":"1",
+                "userdefine": ""  
+            },
+            {
+                "name":"Lev",
+                "type":"ushort",
+                "unit": "mm",
+                "deadzone":"0.5",
+                "ratio": "1",
+                "isReport":"1",
+                "userdefine": ""  
+            }
+        ]
+    },
+    "register": {
+        "token":"234", 
+        "body":[
+            {
+                "model":"Env",
+                "port":"RS485-1",
+                "addr":"1",
+                "desc":""
+            },
+            {
+                "model":"Env",
+                "port":"RS485-1",
+                "addr":"2",
+                "desc":""
+            },
+            {
+                "model":"EnvironmentDetec",
+                "port":"RS485-1",
+                "addr":"3",
+                "desc":""
+            },
+            {
+                "model":"Env",
+                "port":"RS485-1",
+                "addr":"4",
+                "desc":""
+            },
+            {
+                "model":"Env",
+                "port":"RS485-1",
+                "addr":"5",
+                "desc":""
+            },
+            {
+                "model":"Env",
+                "port":"RS485-1",
+                "addr":"6",
+                "desc":""
+            },
+            {
+                "model":"Env",
+                "port":"RS485-1",
+                "addr":"7",
+                "desc":""
+            },
+            {
+                "model":"Env",
+                "port":"RS485-1",
+                "addr":"8",
+                "desc":""
+            },
+            {
+                "model":"Env",
+                "port":"RS485-1",
+                "addr":"9",
+                "desc":""
+            },
+            {
+                "model":"Env",
+                "port":"RS485-1",
+                "addr":"10",
+                "desc":""
+            }
+        ]
+    },
+    "parameter":{
+        "token":"234", 
+        "body":[
+            {
+                "name":"PointTemp_Threshold",
+                "val":"20",
+                "dataType":"uint"
+            },
+            {
+                "name":"RiseTemp_Threshold",
+                "val":"20",
+                "dataType":"uint"
+            },
+            {
+                "name":"EnvDiffTemp_Threshold",
+                "val":"20",
+                "dataType":"uint"
+            },
+            {
+                "name":"PhDiffTemp_Threshold",
+                "val":"20",
+                "dataType":"uint"
+            }
+        ]  
+    }
+}

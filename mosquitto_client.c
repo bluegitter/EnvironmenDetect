@@ -1,7 +1,7 @@
 /*
  * @Author: your name
  * @Date: 2020-02-20 18:01:53
- * @LastEditTime : 2020-03-04 23:00:05
+ * @LastEditTime : 2020-03-09 22:53:57
  * @LastEditors  : Please set LastEditors
  * @Description: In User Settings Edit
  * @FilePath: /EnvironmentDetec/mosquittoClient.c
@@ -19,15 +19,17 @@
 #include "mosquitto_client.h"
 #include "serial_drive.h"
 #include "syslog.h"
+#include "include/zlog.h"
 
-#define HOST "192.168.1.101"
+//#define HOST "192.168.1.101"
 //#define HOST "localhost"
 #define PORT  1883
 #define KEEP_ALIVE 6
 
+static char broker_ip[32];
 struct mosquitto *gMosq = NULL;//mosquitto句柄
 uchar  gMqttStateMachine;//流程状态机
-Config_struc configHandle;//配置参数结构体
+Config_struc configHandle;//app配置参数结构体
 extern sem_t g_sem;//信号量,用于同步线程
 /**
  * @description: 日志回调函数
@@ -56,9 +58,23 @@ void my_connect_callback(struct mosquitto *mosq, void *userdata, int result)
         mosquitto_subscribe(mosq, NULL, Topic_Dev_Get_Return, 2);
         mosquitto_subscribe(mosq, NULL, Topic_DEVICE_GUID_Return, 2);
         mosquitto_subscribe(mosq, NULL, Topic_DATA_SEND_Return, 2);
-    }else{
-        fprintf(stderr, "Connect failed\n");
     }
+    else{
+        fprintf(stderr, "Connect failed\n");
+        zlog_error(zc,"Connect failed");
+    }
+}
+/**
+ * @description: 连接断开回调函数
+ * @param {type} 
+ * @return: 
+ */
+void my_disconnect_callback(struct mosquitto *mosq, void *obj, int result)
+{
+   logMsg(logErr,"mosquitto client disconnect!!!!!!!!");
+    zlog_error(zc,"mosquitto client disconnect!!!!!!!!");
+    mosquitto_connect(gMosq, broker_ip, PORT, KEEP_ALIVE);//断开重连
+    
 }
 /**
  * @description: 订阅回调
@@ -157,7 +173,9 @@ void my_message_callback_recvData(struct mosquitto *mosq, void *userdata, const 
 		}
 		else
 		{
-		     logMsg(logErr,"unknow  topic! \n");
+		    logMsg(logErr,"unknow  topic! \n");
+            zlog_warn(zc,"unknow  topic!");
+             
 		}
     }
     
@@ -269,6 +287,7 @@ int Database_returnResult(struct mosquitto *mosq, const struct mosquitto_message
                 {
                     //操作失败
                     logMsg(logErr,"oprate error! \n");
+                    zlog_error(zc,"oprate error!");
                     return -1;
                 }
             }
@@ -285,33 +304,50 @@ int Database_returnResult(struct mosquitto *mosq, const struct mosquitto_message
  */
 int Mqtt_config_parse(Config_struc *config,const char *fileName)
 {
+    char tmp[128];
     char *file_data = NULL;
     int state;
     cJSON *pjson = NULL;
-
-    printf("\n########mqtt配置文件解析#########\n");
-    if (NULL == (file_data = openJsonFile((char *)fileName))){ // 打开配置脚本文件,fd指向文件内容
-        logMsg(logErr, "%s文件打开错误!", (char *)fileName);
-        return false;
-    }
+    cJSON *item = NULL;
     
+    printf("\n########mqtt配置文件解析#########\n");
+    if (NULL == (file_data = openJsonFile((char *)fileName))){ // 打开配置脚本文件,fd指向文件内容}
+        sprintf(tmp,"/mnt/nand/env/%s",fileName);
+        if (NULL == (file_data = openJsonFile(tmp))){
+            zlog_error(zc, "%s文件打开错误!", tmp);
+            logMsg(logErr, "%s文件打开错误!", tmp);
+            return false;
+        }
+    }
     // 解析数据
     pjson = cJSON_Parse(file_data); //解析配置脚本文件成json格式
+     // 进入模型对象
+    item = cJSON_GetObjectItem(pjson, "broker_ip");
+    if (NULL == item){
+        zlog_error(zc,"提取broker_ip错误!");
+        logMsg(logErr,"提取broker_ip错误!");
+        return false;
+    }
+    strncpy(broker_ip, item->valuestring, 32);
+    logMsg(logInfo, "broker_ip: %s", broker_ip);
     //模型解析
     state = model_json_parse(pjson,config);
     if(state == false){
+        zlog_error(zc,"解析模型错误");
         logMsg(logErr,"解析模型错误");
         return false;
     }
     //register解析
     state = register_json_parse(pjson,config);
     if(state == false){
+        zlog_error(zc,"解析register错误");
         logMsg(logErr,"解析register错误");
         return false;
     }
     //parameter解析
     state = parameter_json_parse(pjson,config);
     if(state == false){
+        zlog_error(zc,"解析parameter错误");
         logMsg(logErr,"解析parameter错误");
         return false;
     }
@@ -339,6 +375,7 @@ int model_json_parse(cJSON *pjson,Config_struc *config)
 
     child_item = cJSON_GetObjectItem(item, "token");
     if (NULL == child_item){
+        zlog_error(zc,"提取model_token错误!");
         logMsg(logErr,"提取model_token错误!");
         return false;
     }
@@ -347,6 +384,7 @@ int model_json_parse(cJSON *pjson,Config_struc *config)
         
     child_item = cJSON_GetObjectItem(item, "model_name");
     if (NULL == child_item){
+        zlog_error(zc,"提取model_name错误!");
         logMsg(logErr,"提取model_name错误!");
         return false;
     }
@@ -356,12 +394,14 @@ int model_json_parse(cJSON *pjson,Config_struc *config)
     //解析body
     child_item = cJSON_GetObjectItem(item, "body");
     if(cJSON_IsArray(child_item) == 0){ 
+        zlog_error(zc,"body is not array!");
         logMsg(logErr,"body is not array!"); 
         return false;
     }
 
     config->model.body_size = cJSON_GetArraySize(child_item);
     if(config->model.body_size<1){//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!警告,如果数组为空,则结束程序
+        zlog_error(zc,"model_body没有元素!");
         logMsg(logErr,"model_body没有元素!");
         return false;
     }
@@ -433,6 +473,7 @@ int  register_json_parse(cJSON *pjson,Config_struc *config)
     
     child_item = cJSON_GetObjectItem(item, "token");
     if (NULL == child_item){
+        zlog_error(zc,"提取register_token错误!");
         logMsg(logErr,"提取register_token错误!");
         return false;
     }
@@ -442,12 +483,14 @@ int  register_json_parse(cJSON *pjson,Config_struc *config)
     //解析数组
     child_item = cJSON_GetObjectItem(item, "body");
     if(cJSON_IsArray(child_item) == 0){ 
+        zlog_error(zc,"body is not array!");
         logMsg(logErr,"body is not array!"); 
         return false;
     }
 
     config->reg.body_size = cJSON_GetArraySize(child_item);
     if(config->reg.body_size<1){//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!警告,如果数组为空,则结束程序
+        zlog_error(zc,"配置文件中register_body数组内没有元素!");
         logMsg(logErr,"配置文件中register_body数组内没有元素!");
         return false;
     }
@@ -501,6 +544,7 @@ int  parameter_json_parse(cJSON *pjson,Config_struc *config)
     
     child_item = cJSON_GetObjectItem(item, "token");
     if (NULL == child_item){
+        zlog_error(zc,"提取parameter_token错误!");
         logMsg(logErr,"提取parameter_token错误!");
         return false;
     }
@@ -510,12 +554,14 @@ int  parameter_json_parse(cJSON *pjson,Config_struc *config)
     //解析数组
     child_item = cJSON_GetObjectItem(item, "body");
     if(cJSON_IsArray(child_item) == 0){ 
+        zlog_error(zc,"body is not array!");
         logMsg(logErr,"body is not array!"); 
         return false;
     }
 
     config->par.body_size = cJSON_GetArraySize(child_item);
     if(config->par.body_size<1){//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!警告,如果数组为空,则结束程序
+         zlog_error(zc,"配置文件中parameter_token数组内没有元素!");
         logMsg(logErr,"配置文件中parameter_token数组内没有元素!");
         return false;
     }
@@ -1042,7 +1088,7 @@ void My_mosq_publish(const char *topic,const char *buf,ushort len)
 		while(1)
 		{
 			sleep(1);
-			if(mosquitto_connect(gMosq, HOST, PORT, KEEP_ALIVE))
+			if(mosquitto_connect(gMosq, broker_ip, PORT, KEEP_ALIVE))
 			{
 				logMsg(logErr,"Mqtt unable connect mosquitto service!");
 				//continue;
@@ -1067,6 +1113,7 @@ void *mosquitto_client_thread(void *args)
     //mqtt配置文件初始化
     state=Mqtt_config_parse(&configHandle,MQTT_CONFIG_FILE_NAME);
     if(state == false){
+        zlog_error(zc,"Mqtt_config_parse return false!");
         printf("Mqtt_config_parse return false!");
         exit(-1);
     }
@@ -1075,6 +1122,7 @@ void *mosquitto_client_thread(void *args)
     //创建mosquitto客户端
     gMosq = mosquitto_new(NULL,session,NULL);
     if(!gMosq){
+        zlog_error(zc,"create mosquitto client failed..");
         logMsg(logErr,"create mosquitto client failed..\n");
         mosquitto_lib_cleanup();
         return NULL;
@@ -1082,14 +1130,16 @@ void *mosquitto_client_thread(void *args)
 
     //设置回调函数，需要时可使用
     //mosquitto_log_callback_set(gMosq, my_log_callback);
-    mosquitto_connect_callback_set(gMosq, my_connect_callback);
-    mosquitto_message_callback_set(gMosq, my_message_callback_recvData);
+    mosquitto_connect_callback_set(gMosq, my_connect_callback);//连接回调
+    mosquitto_disconnect_callback_set(gMosq, my_disconnect_callback);//断开回调
+    mosquitto_message_callback_set(gMosq, my_message_callback_recvData);//订阅到消息回调
     //mosquitto_subscribe_callback_set(mosq, my_subscribe_callback);
     sleep(2);	
     //连接服务器
     while(1)
     {
-	    if(mosquitto_connect(gMosq, HOST, PORT, KEEP_ALIVE)){
+	    if(mosquitto_connect(gMosq, broker_ip, PORT, KEEP_ALIVE)){
+            zlog_error(zc,"failed! Unable to connect service.");
 	        logMsg(logErr, "failed! Unable to connect service.\n");
 	        continue;
             sleep(1);
@@ -1101,6 +1151,7 @@ void *mosquitto_client_thread(void *args)
     int loop = mosquitto_loop_start(gMosq); 
     if(loop != MOSQ_ERR_SUCCESS)
     {
+        zlog_error(zc,"mosquitto loop start error!");
         logMsg(logErr,"mosquitto loop start error!\n");
         return NULL;
     }
@@ -1113,6 +1164,7 @@ void *mosquitto_client_thread(void *args)
 		usleep(100000);	//delay100ms
 		cnt ++;
         if(!(gMqttStateMachine&0x02)){
+            zlog_error(zc,"模型注册失败,失败次数 = %d,gMqttStateMachine = %02x!",cnt,gMqttStateMachine);
             logMsg(logWarn,"模型注册失败,失败次数 = %d,gMqttStateMachine = %02x!",cnt,gMqttStateMachine);
         }
 	}
@@ -1124,6 +1176,7 @@ void *mosquitto_client_thread(void *args)
 		usleep(100000);	//delay100ms
 		cnt ++;
         if(!(gMqttStateMachine&0x04)){
+            zlog_error(zc,"设备注册失败,失败次数 = %d,gMqttStateMachine = %02x!",cnt,gMqttStateMachine);
             logMsg(logWarn,"设备注册失败,失败次数 = %d,gMqttStateMachine = %02x!",cnt,gMqttStateMachine);
         }
     }
@@ -1135,6 +1188,7 @@ void *mosquitto_client_thread(void *args)
 		usleep(100000);	//delay100ms
 		cnt ++;
         if(!(gMqttStateMachine&0x08)){
+             zlog_error(zc,"获取GUID失败,失败次数 = %d,gMqttStateMachine = %02x!",cnt,gMqttStateMachine);
             logMsg(logWarn,"获取GUID失败,失败次数 = %d,gMqttStateMachine = %02x!",cnt,gMqttStateMachine);
         }
     }

@@ -1,7 +1,7 @@
 /*
  * @Author: your name
  * @Date: 2019-12-18 18:55:03
- * @LastEditTime : 2020-03-04 22:12:29
+ * @LastEditTime : 2020-03-09 23:55:23
  * @LastEditors  : Please set LastEditors
  * @Description: In User Settings Edit
  * @FilePath: /hebi-modbus/modbus_master.c
@@ -12,6 +12,7 @@
 //支持的功能码：
 //0x01 读线圈状态
 //0x03 读保持寄存器（读多个保持寄存器的值）
+//0x04 读输入寄存器 (读多个输入寄存器的值)
 //0x06 写单个寄存器（写入一个寄存器的值）
 //0x10 写多个寄存器（写入多个寄存器的值）
 //
@@ -28,6 +29,7 @@
 #include "serial_drive.h"
 #include "include/cJSON.h"
 #include "syslog.h"
+#include "include/zlog.h"
 
 /* 变量定义 ------------------------------------------------------------------*/
 // uchar Modbus_Send_Buff[MAX_SEND_BUFF_LEN]; //发送数据缓冲区
@@ -84,10 +86,12 @@ int Master_handle_recvFrame(uchar *recv_buff,ushort recv_len,uchar *send_buff,Va
                 break;   
             default:
                 if(recv_buff[1] & 0x80){//从机返回的异常功能码
+                    zlog_error(zc,"function = %02x",recv_buff[1]);
                     logMsg(logErr,"function = %02x",recv_buff[1]);
                     Master_ErrorHandling(recv_buff);//异常功能码处理
                 }
                 else{
+                    zlog_error(zc,"function = %02x",recv_buff[1]);
                     logMsg(logErr,"无法识别从机功能码!");
                     return ERROR;
                 }    
@@ -95,12 +99,14 @@ int Master_handle_recvFrame(uchar *recv_buff,ushort recv_len,uchar *send_buff,Va
         }
         else
         {
+            zlog_error(zc,"slave address error!");
             logMsg(logErr,"slave address error!");
             return ERROR;
         }   
     }
     else
     {
+        zlog_error(zc,"crc16 error!");
         logMsg(logErr,"crc16 error!");
         return ERROR;
     } 
@@ -276,16 +282,20 @@ void Master_ErrorHandling(uchar *recv_buff)
     switch(excep_code)
     {
     case 0x01:
+        zlog_info(zc,"[ERROR]:从机无法识别功能码!");
         logMsg(logErr,"从机无法识别功能码!");
         break;
     case 0x02:
+        zlog_info(zc,"[ERROR]:从机识别到错误寄存器地址!");
         logMsg(logErr,"从机识别到错误寄存器地址!");
         break;
 
     case 0x03:
+        zlog_info(zc,"[ERROR]:从机识别到错误数据数量!");
         logMsg(logErr,"从机识别到错误数据数量!");
         break;
     default: 
+        zlog_info(zc,"[ERROR]:Unknown exception code,exception code = %02x",excep_code);
         logMsg(logErr,"Unknown exception code,exception code = %02x",excep_code);
     }
 }
@@ -395,6 +405,7 @@ ushort Modbus_CRC16(uchar *puchMsg, uint dataLen)
  */
 LinkedList modbus_config_init(MODBUS_ARGU_STRU *modPara,const char *fileName)
 {
+    char tmp[128];
     LinkedList headNode;
     LinkedList element;
     uint reg_addr;
@@ -409,8 +420,12 @@ LinkedList modbus_config_init(MODBUS_ARGU_STRU *modPara,const char *fileName)
 
     printf("\n########modbus配置文件解析########\n");
     if (NULL == (file_data = openJsonFile((char *)fileName))){ // 打开配置脚本文件,fd指向文件内容
-        logMsg(logErr,"%s文件打开错误!", (char *)fileName);
-        return NULL;
+        sprintf(tmp,"/mnt/nand/env/%s",fileName);
+        if (NULL == (file_data = openJsonFile(tmp))){
+            zlog_error(zc, "%s文件打开错误!", tmp);
+            logMsg(logErr, "%s文件打开错误!", tmp);
+            return NULL;
+        }
     }
     // 解析数据
     pjson = cJSON_Parse(file_data); 
@@ -418,6 +433,7 @@ LinkedList modbus_config_init(MODBUS_ARGU_STRU *modPara,const char *fileName)
     item = cJSON_GetObjectItem(pjson, "ModbusPara");
     child_item = cJSON_GetObjectItem(item, "SlaveAddr");
     if(child_item == NULL){
+        zlog_error(zc,"提取从机地址错误!");
         logMsg(logErr,"提取从机地址错误!");
         return NULL;
     }
@@ -427,6 +443,7 @@ LinkedList modbus_config_init(MODBUS_ARGU_STRU *modPara,const char *fileName)
     //提取广播地址
     child_item = cJSON_GetObjectItem(item, "BroadcastAddr");
     if(child_item == NULL){
+        zlog_error(zc,"提取广播地址错误!");
         logMsg(logErr,"提取广播地址错误!");
         return false;
     }
@@ -435,6 +452,7 @@ LinkedList modbus_config_init(MODBUS_ARGU_STRU *modPara,const char *fileName)
     //解析数组
     child_item = cJSON_GetObjectItem(item, "Variable_Read");
     if(cJSON_IsArray(child_item) == 0){ 
+        zlog_error(zc,"Variable is not array!");
         logMsg(logErr,"Variable is not array!"); 
         return false;
     }
@@ -443,6 +461,7 @@ LinkedList modbus_config_init(MODBUS_ARGU_STRU *modPara,const char *fileName)
        element = headNode =  LinkedList_create();//创建表头链表,表头链表数据为空
     }
     else{//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!警告,如果数组为空,则结束程序
+          zlog_error(zc,"配置文件中variable_Read数组内没有元素!");
         logMsg(logErr,"配置文件中variable_Read数组内没有元素!");
         return false;
     }
@@ -508,7 +527,7 @@ LinkedList modbus_config_init(MODBUS_ARGU_STRU *modPara,const char *fileName)
         }
         else{
             logMsg(logErr,"data type error! supportting data type for bit char short int float.");
-            return false;
+            return NULL;
         }
     }
     printf("链表大小:%d\n\n",LinkedList_size(headNode));

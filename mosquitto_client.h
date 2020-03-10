@@ -1,10 +1,10 @@
 /*
  * @Author: your name
  * @Date: 2020-02-27 19:14:18
- * @LastEditTime : 2020-03-04 23:21:22
+ * @LastEditTime : 2020-03-09 22:55:01
  * @LastEditors  : Please set LastEditors
  * @Description: In User Settings Edit
- * @FilePath: /EnvironmentDetec/mosquitto_client.h
+ * @FilePath: /Env/mosquitto_client.h
  */
 #ifndef _MOSQUITTO_CLIENT__H
 #define _MOSQUITTO_CLIENT__H
@@ -84,39 +84,39 @@ typedef struct
 }Config_struc;
 extern Config_struc configHandle;//配置参数结构体
 //注册模型
-#define Topic_Set_Model "EnvironmentDetec/set/request/database/model"
-#define Topic_Set_Model_Return "database/set/response/EnvironmentDetec/model"  
+#define Topic_Set_Model "Env/set/request/database/model"
+#define Topic_Set_Model_Return "database/set/response/Env/model"  
 
 //删除模型
-#define Topic_Delete_Model "EnvironmentDetec/action/request/database/deletemodel"
-#define Topic_Delete_Model_Return "database/action/response/EnvironmentDetec/deletemodel"
+#define Topic_Delete_Model "Env/action/request/database/deletemodel"
+#define Topic_Delete_Model_Return "database/action/response/Env/deletemodel"
 
 //查询注册的模型名称
 #define Topic_Get_Model "wuyise/get/request/database/modelschema"
 #define Topic_Get_Model_Return "database/get/response/wuyise/modelschema"
 
 //注册设备
-#define Topic_Dev_Register "EnvirnmentDetec/set/request/database/register"
+#define Topic_Dev_Register "Env/set/request/database/register"
 #define Topic_Dev_Register_Return "+/set/response/+/register"
 
 //查询设备
-#define Topic_Dev_Get "EnvironmentDetec/get/request/database/register"
-#define Topic_Dev_Get_Return "database/get/response/EnvironmentDetec/register"
+#define Topic_Dev_Get "Env/get/request/database/register"
+#define Topic_Dev_Get_Return "database/get/response/Env/register"
 //删除设备
-#define Topic_Dev_Delete "EnvironmentDetec/action/request/database/unregister"
-#define Topic_Dev_Delete_Return "database/action/response/EnvironmentDetec/unregister"
+#define Topic_Dev_Delete "Env/action/request/database/unregister"
+#define Topic_Dev_Delete_Return "database/action/response/Env/unregister"
 
 //读取设备GUID
-#define Topic_DEVICE_GUID "EnvironmentDetec/get/request/database/guid"
+#define Topic_DEVICE_GUID "Env/get/request/database/guid"
 #define Topic_DEVICE_GUID_Return "+/get/response/+/guid"
 
 //数据主动上传
-#define Topic_DATA_SEND "EnvironmentDetec/notify/event/database"
-#define Topic_DATA_SEND_Return "database/notify/response/EnvironmentDetec/+/+"
+#define Topic_DATA_SEND "Env/notify/event/database"
+#define Topic_DATA_SEND_Return "database/notify/response/Env/+/+"
 
 //根据设备读取实时数据
-#define Topic_DATA_READ "EnvironmentDetec/get/request/database/realtime"
-#define Topic_DATA_READ_Return "database/get/response/EnvironmentDetec/realtime"
+#define Topic_DATA_READ "Env/get/request/database/realtime"
+#define Topic_DATA_READ_Return "database/get/response/Env/realtime"
 
 void *mosquitto_client_thread(void *args);
 void my_message_callback_recvData(struct mosquitto *mosq, void *userdata, const struct mosquitto_message *message);

@@ -14,6 +14,7 @@
 #include "gtypedef.h"
 #include "modbus_master.h"
 #include "mosquitto_client.h"
+#include "include/zlog.h"
 
 #ifdef LOG
     FILE *log_fd;
@@ -24,6 +25,8 @@ sem_t g_sem;//信号量,用于同步线程
 
 /* Short option names */
 static const char g_shortopts [] = "v";
+
+zlog_category_t *zc; //zlog变量分类
 
 //信号处理函数
 static void signal_handle(int signo)
@@ -39,6 +42,7 @@ static void signal_handle(int signo)
 }
 int main(int argc, char **argv) 
 {
+    int rc;
 	struct termios opt;
     int flag = 0,ch;
     LinkedList element;
@@ -55,13 +59,28 @@ int main(int argc, char **argv)
             exit(0);
         }
     }
-
+    rc = zlog_init("zlog.conf");
+    if (rc) {
+        rc = zlog_init("/mnt/nand/env/zlog.conf");
+        if (rc) {
+            printf("zlog init failed\n");
+            printf("rc=%d\n",rc);
+            return -1;
+        }
+    }
+    zc = zlog_get_category("my_cat");
+    if (!zc) {
+        printf("zlog get cat fail\n");
+        zlog_fini();
+        return -2;
+    }
     //信号处理
     signal(SIGINT,signal_handle);
     //信号量初始化
     flag = sem_init(&g_sem, 0, 0);
     if (flag == -1) {
         printf("sem_init failed \n");
+        zlog_error(zc,"sem_init failed");
         return -1;
     }
     //创建线程
@@ -71,12 +90,14 @@ int main(int argc, char **argv)
     flag=serial_init(&gUart.fd,&opt);
     if(flag==false) {
          printf("serial inital failed.\n");
+         zlog_error(zc,"serial inital failed.");
          return -1;
     }
     //modbus配置初始化
     gHeadNode = modbus_config_init(&modbus_argu,FILENAME);
     if(gHeadNode == NULL) {
          printf("modbus config init failed!\n");
+         zlog_error(zc,"modbus config init failed!");
          return -1;
     }
     #ifdef LOG
@@ -116,6 +137,7 @@ int main(int argc, char **argv)
                 break;
             default:
                 printf("无法识别配置文件中的功能码,功能码:%d",(int)var_struc->func);
+                zlog_error(zc,"无法识别配置文件中的功能码,功能码:%d",(int)var_struc->func);
                 break;
             }
             //查询接收
@@ -137,5 +159,6 @@ int main(int argc, char **argv)
     pthread_join (t1, NULL);//等待线程t1结束
     My_linkedList_destroy(gHeadNode);//深度销毁链表
     close_serial(gUart.fd);
+    zlog_fini();
     return 0;
 }

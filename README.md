@@ -1,7 +1,7 @@
 <!--
  * @Author: your name
  * @Date: 2020-03-03 02:19:38
- * @LastEditTime : 2020-03-05 00:51:38
+ * @LastEditTime : 2020-03-09 23:46:34
  * @LastEditors  : Please set LastEditors
  * @Description: In User Settings Edit
  * @FilePath: /EnvironmentDetec/README.md
@@ -169,7 +169,64 @@
 ## 3.7 mqtt配置文件
 
     mqttConfig.json
+# 4 配置文件说明(#注释说明)
+## 4.1 modbus配置文件说明
+    {
+        "Tag": "modbus参数配置", 
+        "Com":{ #串口配置
+            "DevName": "/dev/ttySZ3",  #串口设备号
+            "Port": "RS485_1",    #智芯融合终端串口通信协议(RS485_1/RS485_2/RS485_3/RS485_4,RS232_1/RS232_2)
+            "BaudRate": 9600, #波特率 (支持1200/4800/9600/115200/230400/460800)
+            "DataBit":8,    #数据位(支持7/8)
+            "StopBit":1,    #停止位(支持1//2)
+            "Parity":"Odd"  #校验位(支持Odd/Event/None)   
+        },
+        "ModbusPara":{ #modbus配置
+            "BroadcastAddr":0, #广播地址(十进制)
+            "SlaveAddr": 128, #从机地址(十进制)
+            "Variable_Read":[ #读寄存器(支持功能码01/03/04)
+                {
+                    "Name":"Tmp",  #变量名(选填)
+                    "Unit":"°C",  #单位(选填)
+                    "Type":"ushort", #保存的数据格式
+                    "StartAddr":"0000", #起始地址
+                    "EndAddr":"003B", #结束地址(选填)
+                    "Number":60, #数量
+                    "Func":4 #选择的功能码
+                },
+                {
+                    "Name":"TmpEnvHum",
+                    "Unit":"°C/%RH",
+                    "Type":"ushort",
+                    "StartAddr":"01E0",
+                    "EndAddr":"01F3",
+                    "Number":20,
+                    "Func":4
+                },
+                {
+                    "Name":"Smoke",
+                    "Unit":"ON/OFF",
+                    "Type":"ushort",
+                    "StartAddr":"01F4",
+                    "EndAddr":"01FD",
+                    "Number":10,
+                    "Func":4
+                },
+                {
+                    "Name":"Lev",
+                    "Unit":"mm",
+                    "Type":"ushort",
+                    "StartAddr":"01FE",
+                    "EndAddr":"0207",
+                    "Number":10,
+                    "Func":4
+                }
+            ],
+            "Variable_Write":[ #写寄存器(支持功能码06/10)
 
+            ]
+        }
+    }
 # 版本管理
     1.版本:v1.00 时间:2020/03/05 描述:实现modbus主站召唤从站的传感器数据,并将数据上送到数据中心
     

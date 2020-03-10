@@ -1,11 +1,13 @@
 #CC = gcc
 CC = arm-linux-gnueabihf-gcc
 INCLUDE = -I ./include
-LIBS   = -lssl -lcrypto -lmosquitto -lpthread -lcares
-LIB_PATH=-L /home/fashion/zhixin_item/lib 
+LIBS   +=  -lssl -lcrypto -lmosquitto -lpthread -lcares -lzlog
+#LIBS   += -Bstatic -lzlog -Bdynamic
+LIB_PATH += -L /home/fashion/zhixin_item/lib 
+LIB_PATH += -L ./lib
 CFLAGS = -Wall 
 OBJS   = main.o modbus_master.o serial_drive.o cJSON.o linked_list.o lib_memory.o mosquitto_client.o
-TARGET =  main.exe 
+TARGET = Env 
 
 all:$(TARGET)
 
@@ -19,5 +21,5 @@ $(TARGET):$(OBJS)
 cleanobject:
 	rm -rf *.o
 clean: 
-	rm -rf *.exe *.o 
+	rm -rf *.exe *.o Env
 

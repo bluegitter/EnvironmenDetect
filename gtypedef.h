@@ -3,7 +3,7 @@
  * @LastEditors  : Please set LastEditors
  * @Description: 数据类型定义文件
  * @Date: 2019-03-28 21:06:03
- * @LastEditTime : 2020-02-20 18:48:03
+ * @LastEditTime : 2020-03-09 23:48:38
  */
 
 #ifndef gtypedef__h
@@ -62,6 +62,30 @@ extern "C"
 #ifndef DWORD
     typedef unsigned long DWORD;
 #endif
+#endif
+
+#ifndef uint8
+    typedef unsigned char uint8;
+#endif
+
+#ifndef uint8_t
+    typedef unsigned char uint8_t;
+#endif
+
+#ifndef uint16
+    typedef unsigned char uint16;
+#endif
+
+#ifndef uint16_t
+    typedef unsigned char uint16_t;
+#endif
+
+#ifndef uint32
+    typedef unsigned char uint32;
+#endif
+
+#ifndef uint32_t
+    typedef unsigned char uint32_t;
 #endif
 
 #ifndef uchar

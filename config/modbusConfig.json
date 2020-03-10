@@ -1,0 +1,56 @@
+{
+    "Tag": "modbus参数配置",
+    "Com":{
+        "DevName": "/dev/ttySZ3",  
+        "Port": "RS485_1",    
+        "BaudRate": 9600,
+        "DataBit":8,
+        "StopBit":1,
+        "Parity":"Odd"     
+    },
+    "ModbusPara":{
+        "BroadcastAddr":0,
+        "SlaveAddr": 128,
+        "Variable_Read":[
+            {
+                "Name":"Tmp",
+                "Unit":"°C",
+                "Type":"ushort",
+                "StartAddr":"0000",
+                "EndAddr":"003B",
+                "Number":60,
+                "Func":4
+            },
+            {
+                "Name":"TmpEnvHum",
+                "Unit":"°C/%RH",
+                "Type":"ushort",
+                "StartAddr":"01E0",
+                "EndAddr":"01F3",
+                "Number":20,
+                "Func":4
+            },
+            {
+                "Name":"Smoke",
+                "Unit":"ON/OFF",
+                "Type":"ushort",
+                "StartAddr":"01F4",
+                "EndAddr":"01FD",
+                "Number":10,
+                "Func":4
+            },
+            {
+                "Name":"Lev",
+                "Unit":"mm",
+                "Type":"ushort",
+                "StartAddr":"01FE",
+                "EndAddr":"0207",
+                "Number":10,
+                "Func":4
+            }
+        ],
+        "Variable_Write":[
+
+        ]
+    }
+}
